@@ -1,0 +1,592 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  username      String    @unique
+  name          String?
+  passwordHash  String?
+  image         String?
+  bio           String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Privacy
+  profilePrivacy  String  @default("public") // public | friends | private
+  showStreaks     Boolean @default(true)
+  showStats       Boolean @default(true)
+  showCollectibles Boolean @default(true)
+
+  // Nutrition Blueprint
+  blueprint       NutritionBlueprint?
+
+  // Gamification
+  level           Int     @default(1)
+  xpLifestyle     Int     @default(0)
+  xpSocial        Int     @default(0)
+  activeTitle     String?
+
+  // Relations
+  accounts        Account[]
+  sessions        Session[]
+  meals           Meal[]
+  streaks         Streak[]
+  titles          UserTitle[]
+  collectibles    UserCollectible[]
+  gardenElements  GardenElement[]
+  mascot          UserMascot?
+  posts           Post[]
+  comments        Comment[]
+  likes           Like[]
+  recipes         Recipe[]
+  savedRecipes    SavedRecipe[]
+  battlesAsA      Battle[]         @relation("BattleUserA")
+  battlesAsB      Battle[]         @relation("BattleUserB")
+  groups          GroupMember[]
+  notifications   Notification[]
+  sentRequests    FriendRequest[]  @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+  friendsA        Friendship[]     @relation("FriendshipA")
+  friendsB        Friendship[]     @relation("FriendshipB")
+  xpLogs          XPLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── NUTRITION BLUEPRINT ──────────────────────────────────────────────────────
+
+model NutritionBlueprint {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  age             Int
+  weight          Float   // kg
+  height          Float   // cm
+  gender          String  // male | female | other
+  activityLevel   String  // sedentary | light | moderate | active | very_active
+  goal            String  // lose_weight | maintain | gain_muscle | healthy_lifestyle
+  dietaryPref     String  // vegan | vegetarian | non_veg | pescatarian
+  allergies       String[] @default([])
+  cuisines        String[] @default([])
+
+  // Calculated targets
+  calorieTarget   Int
+  proteinTarget   Int     // grams
+  carbTarget      Int     // grams
+  fatTarget       Int     // grams
+  waterTarget     Int     // ml
+  fiberTarget     Int     // grams
+
+  // Vitamin/mineral targets (JSON for flexibility)
+  microTargets    Json    @default("{}")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("nutrition_blueprints")
+}
+
+// ─── FOOD & MEALS ─────────────────────────────────────────────────────────────
+
+model FoodItem {
+  id          String   @id @default(cuid())
+  name        String
+  usdaFdcId   String?  @unique
+  category    String?
+  emoji       String?
+
+  // Per 100g / 100ml
+  calories    Float    @default(0)
+  protein     Float    @default(0)
+  carbs       Float    @default(0)
+  fat         Float    @default(0)
+  fiber       Float    @default(0)
+  sugar       Float    @default(0)
+  sodium      Float    @default(0)
+  calcium     Float    @default(0)
+  iron        Float    @default(0)
+  vitaminA    Float    @default(0)
+  vitaminC    Float    @default(0)
+  vitaminD    Float    @default(0)
+  vitaminB12  Float    @default(0)
+  vitaminK    Float    @default(0)
+  magnesium   Float    @default(0)
+  potassium   Float    @default(0)
+  zinc        Float    @default(0)
+
+  // Rare / collectible trigger
+  isRare      Boolean  @default(false)
+  collectibleId String?
+
+  mealFoods   MealFood[]
+  createdAt   DateTime @default(now())
+
+  @@map("food_items")
+}
+
+model Meal {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String?
+  mealType    String     // breakfast | lunch | dinner | snack
+  loggedAt    DateTime   @default(now())
+  date        String     // YYYY-MM-DD for easy daily lookups
+  isTemplate  Boolean    @default(false)
+  emoji       String?
+
+  foods       MealFood[]
+  createdAt   DateTime   @default(now())
+
+  @@index([userId, date])
+  @@map("meals")
+}
+
+model MealFood {
+  id          String    @id @default(cuid())
+  mealId      String
+  meal        Meal      @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  foodId      String
+  food        FoodItem  @relation(fields: [foodId], references: [id])
+  quantity    Float     // in base unit (g or ml)
+  unit        String    @default("g") // g | ml | tsp | tbsp | cup | piece | slice
+
+  @@map("meal_foods")
+}
+
+model DailyLog {
+  id          String   @id @default(cuid())
+  userId      String
+  date        String   // YYYY-MM-DD
+
+  // Totals for the day
+  calories    Float    @default(0)
+  protein     Float    @default(0)
+  carbs       Float    @default(0)
+  fat         Float    @default(0)
+  fiber       Float    @default(0)
+  water       Float    @default(0) // ml
+  vitaminA    Float    @default(0)
+  vitaminC    Float    @default(0)
+  vitaminD    Float    @default(0)
+  vitaminB12  Float    @default(0)
+  iron        Float    @default(0)
+  magnesium   Float    @default(0)
+  calcium     Float    @default(0)
+  potassium   Float    @default(0)
+
+  // Completion percentages
+  caloriesPct Float    @default(0)
+  proteinPct  Float    @default(0)
+  vitaminsPct Float    @default(0)
+  hydrationPct Float   @default(0)
+  mineralsPct Float    @default(0)
+  fiberPct    Float    @default(0)
+
+  xpEarned    Int      @default(0)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("daily_logs")
+}
+
+// ─── GAMIFICATION ─────────────────────────────────────────────────────────────
+
+model Streak {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // protein | hydration | vitamins | breakfast | balanced | logging
+  currentDays Int      @default(0)
+  longestDays Int      @default(0)
+  lastLogDate String?  // YYYY-MM-DD
+  isActive    Boolean  @default(true)
+  startedAt   DateTime @default(now())
+  brokenAt    DateTime?
+
+  @@unique([userId, type])
+  @@map("streaks")
+}
+
+model Title {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  emoji       String
+  tier        String      // beginner | intermediate | rare | legendary
+  description String
+  condition   Json        // { type: "streak", streakType: "protein", days: 75 } etc.
+  isSecret    Boolean     @default(false)
+
+  userTitles  UserTitle[]
+  @@map("titles")
+}
+
+model UserTitle {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  titleId     String
+  title       Title    @relation(fields: [titleId], references: [id])
+  unlockedAt  DateTime @default(now())
+  isEquipped  Boolean  @default(false)
+
+  @@unique([userId, titleId])
+  @@map("user_titles")
+}
+
+model XPLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // lifestyle | social
+  amount      Int
+  reason      String
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@map("xp_logs")
+}
+
+// ─── COLLECTIBLES ─────────────────────────────────────────────────────────────
+
+model Collectible {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  emoji       String
+  description String
+  rarity      String           // common | rare | epic | legendary
+  triggerFood String?          // food name that triggers discovery
+  triggerType String?          // food | streak | level | special
+  triggerValue Int?
+
+  userCollectibles UserCollectible[]
+  @@map("collectibles")
+}
+
+model UserCollectible {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collectibleId String
+  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  discoveredAt  DateTime    @default(now())
+  isDisplayed   Boolean     @default(true)
+
+  @@unique([userId, collectibleId])
+  @@map("user_collectibles")
+}
+
+// ─── PROFILE GARDEN ───────────────────────────────────────────────────────────
+
+model GardenElement {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // rose | river | butterfly | tree | chicken | flowers | ...
+  emoji       String
+  unlockedAt  DateTime @default(now())
+  posX        Float    @default(0) // percentage 0-100
+  posY        Float    @default(0)
+  isVisible   Boolean  @default(true)
+
+  @@map("garden_elements")
+}
+
+model UserMascot {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mascotType  String   @default("fox") // fox | bunny | dragon | blob | cat
+  name        String   @default("Lumie")
+  mood        String   @default("happy") // happy | thirsty | sad | excited | tired
+  skinId      String?
+
+  @@map("user_mascots")
+}
+
+// ─── RECIPES ──────────────────────────────────────────────────────────────────
+
+model Recipe {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  imageUrl    String?
+  emoji       String        @default("🍽️")
+  prepTime    Int?          // minutes
+  cookTime    Int?          // minutes
+  servings    Int           @default(1)
+
+  // Nutrition per serving (auto-calculated)
+  calories    Float         @default(0)
+  protein     Float         @default(0)
+  carbs       Float         @default(0)
+  fat         Float         @default(0)
+  fiber       Float         @default(0)
+
+  // Filters
+  isVegan       Boolean     @default(false)
+  isVegetarian  Boolean     @default(false)
+  isHighProtein Boolean     @default(false)
+  isLowCalorie  Boolean     @default(false)
+  isIronRich    Boolean     @default(false)
+  isVitaminRich Boolean     @default(false)
+  isQuick       Boolean     @default(false)
+  isBudget      Boolean     @default(false)
+
+  tags          String[]    @default([])
+  isPublic      Boolean     @default(true)
+  likeCount     Int         @default(0)
+
+  ingredients   RecipeIngredient[]
+  steps         RecipeStep[]
+  saves         SavedRecipe[]
+  likes         Like[]
+  comments      Comment[]
+  posts         Post[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  foodName  String
+  quantity  Float
+  unit      String   @default("g")
+  order     Int      @default(0)
+
+  @@map("recipe_ingredients")
+}
+
+model RecipeStep {
+  id        String  @id @default(cuid())
+  recipeId  String
+  recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  stepNumber Int
+  content   String
+  duration  Int?    // seconds
+
+  @@map("recipe_steps")
+}
+
+model SavedRecipe {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId  String
+  recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  folder    String  @default("General")
+  savedAt   DateTime @default(now())
+
+  @@unique([userId, recipeId])
+  @@map("saved_recipes")
+}
+
+// ─── SOCIAL ───────────────────────────────────────────────────────────────────
+
+model Post {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content     String
+  postType    String    @default("general") // general | achievement | recipe | transformation | collectible
+  imageUrl    String?
+  recipeId    String?
+  recipe      Recipe?   @relation(fields: [recipeId], references: [id])
+  metadata    Json?     // { streakDays: 47, streakType: "protein" } etc.
+  likeCount   Int       @default(0)
+  commentCount Int      @default(0)
+  isPublic    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  likes       Like[]
+  comments    Comment[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  recipeId  String?
+  recipe    Recipe?  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@unique([userId, recipeId])
+  @@map("likes")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  recipeId  String?
+  recipe    Recipe?  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@map("comments")
+}
+
+model FriendRequest {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      User     @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User     @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  status      String   @default("pending") // pending | accepted | ghosted
+  createdAt   DateTime @default(now())
+
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userAId   String
+  userA     User     @relation("FriendshipA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId   String
+  userB     User     @relation("FriendshipB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userAId, userBId])
+  @@map("friendships")
+}
+
+// ─── BATTLES ─────────────────────────────────────────────────────────────────
+
+model Battle {
+  id          String   @id @default(cuid())
+  userAId     String
+  userA       User     @relation("BattleUserA", fields: [userAId], references: [id])
+  userBId     String
+  userB       User     @relation("BattleUserB", fields: [userBId], references: [id])
+  battleType  String   // protein | hydration | consistency | balanced | calories
+  status      String   @default("pending") // pending | active | completed
+  startDate   DateTime
+  endDate     DateTime
+  scoreA      Float    @default(0)
+  scoreB      Float    @default(0)
+  winnerId    String?
+  groupId     String?
+  group       Group?   @relation(fields: [groupId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([userAId])
+  @@index([userBId])
+  @@map("battles")
+}
+
+// ─── GROUPS ───────────────────────────────────────────────────────────────────
+
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  emoji       String        @default("🌿")
+  imageUrl    String?
+  isPrivate   Boolean       @default(false)
+  ownerId     String
+  groupXP     Int           @default(0)
+  createdAt   DateTime      @default(now())
+
+  members     GroupMember[]
+  battles     Battle[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("member") // owner | admin | member
+  joinedAt  DateTime @default(now())
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // deficiency | streak_warning | xp_gain | garden_unlock | friend_request | battle_invite | like | comment | level_up | collectible
+  category  String   @default("personal") // personal | social
+  title     String
+  message   String
+  metadata  Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
