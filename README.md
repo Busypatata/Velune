@@ -53,7 +53,7 @@ Velune is a full-stack cross-platform social nutrition RPG. It combines nutritio
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/your-org/velune.git
+git clone https://github.com/Busypatata/velune.git
 cd velune
 npm install
 ```
