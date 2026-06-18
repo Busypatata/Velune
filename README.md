@@ -1,4 +1,4 @@
-# 🌿 Velune — Social Nutrition RPG
+# Velune — Social Nutrition RPG
 
 > *Grow your world through nutrition*
 
@@ -6,7 +6,7 @@ Velune is a full-stack cross-platform social nutrition RPG. It combines nutritio
 
 ---
 
-## ✨ Features
+## Features
 
 - **Nutrition Blueprint** — Personalized calorie, macro, vitamin & mineral targets via Mifflin-St Jeor BMR
 - **Nutrient Rings** — Animated glowing rings for calories, protein, vitamins, hydration, minerals & fiber
@@ -26,7 +26,7 @@ Velune is a full-stack cross-platform social nutrition RPG. It combines nutritio
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -48,58 +48,7 @@ Velune is a full-stack cross-platform social nutrition RPG. It combines nutritio
 
 ---
 
-## 🚀 Quick Start
-
-### 1. Clone & Install
-
-```bash
-git clone https://github.com/Busypatata/velune.git
-cd velune
-npm install
-```
-
-### 2. Environment Variables
-
-```bash
-cp .env.example .env
-```
-
-Fill in all values in `.env`. Required:
-- `DATABASE_URL` — Neon PostgreSQL connection string
-- `AUTH_SECRET` — Run `openssl rand -base64 32`
-- `REDIS_URL` — Redis connection string
-
-Optional but recommended:
-- `USDA_API_KEY` — Get free key at https://fdc.nal.usda.gov/api-key-signup.html
-- `OPENAI_API_KEY` — For AI recommendations
-- `CLOUDINARY_*` — For image uploads
-
-### 3. Database Setup
-
-```bash
-# Generate Prisma client
-npm run db:generate
-
-# Push schema to database
-npm run db:push
-
-# Seed with initial data (titles, collectibles, demo user)
-npm run db:seed
-```
-
-### 4. Run Development Server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000)
-
-**Demo credentials:** `ara@velune.app` / `velune123`
-
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 velune/
@@ -157,33 +106,7 @@ velune/
 └── ...config files
 ```
 
----
-
-## 🎨 Design System — Moon Garden Fantasy
-
-### Color Palette
-
-| Purpose | Color | Hex |
-|---------|-------|-----|
-| Primary | Soft Sage Green | `#8FBF9F` |
-| Secondary | Misty Lavender | `#B7A7D9` |
-| Accent | Peach Glow | `#FFB997` |
-| Highlight | Mint Glow | `#B8F2D0` |
-| Background | Warm Cream | `#F7F4ED` |
-| Alert | Glowing Coral | `#E07A7A` |
-| XP Bar | Magical Lavender | `#BDB2FF` |
-
-### Nutrient Colors
-- 🔥 Calories: `#FFD166`
-- 💪 Protein: `#F4978E`
-- 🌈 Vitamins: `#C8B6FF`
-- 💧 Hydration: `#7BDFF2`
-- 🌿 Minerals: `#95D5B2`
-- 🌾 Fiber: `#FFCB77`
-
----
-
-## 🗄 Database
+## Database
 
 The schema includes:
 - **Users** — Auth, profile, privacy settings
@@ -206,7 +129,7 @@ The schema includes:
 
 ---
 
-## 🔒 Environment Variables Reference
+## Environment Variables Reference
 
 ```env
 # Required
@@ -225,28 +148,6 @@ CLOUDINARY_API_SECRET=
 USDA_API_KEY=             # https://fdc.nal.usda.gov/api-key-signup.html
 OPENAI_API_KEY=           # For AI recommendations
 ```
-
----
-
-## 🌐 Deployment
-
-### Vercel (Frontend)
-```bash
-vercel deploy
-```
-Set all environment variables in Vercel dashboard.
-
-### Railway (Redis + optionally backend)
-- Create Redis service on Railway
-- Copy `REDIS_URL` to your `.env`
-
-### Neon (Database)
-- Create project at neon.tech
-- Copy connection string as `DATABASE_URL`
-- Run `npm run db:push` and `npm run db:seed`
-
----
-
-## 📝 License
+## License
 
 MIT © Velune
